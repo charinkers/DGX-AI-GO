@@ -27,3 +27,7 @@ robot-sim/output/
 *.env
 .env
 secrets.json
+
+# Runtime logs
+*.log
+community/*.log
