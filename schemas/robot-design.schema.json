@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kaipushi-dai.openchildrobot/schemas/robot-design.schema.v2",
+  "title": "RobotDesignSpec v2",
+  "description": "儿童机器人创想实践平台 · 定制机器人设计契约（v2，合并 kidcomm 表达层字段）。Unity 设计端(写) / Unity 仿真运行时(读) / Web 表达预览(写) / Agent+Skills harness(读+驱动) / kidcomm 设计稿编译(读+写) 共享同一份契约，使「孩子表达 → 设计交付 → 仿真物理实现」可跨平台流转。必填项保持最小集以兼容既有 MuJoCo 仿真链路，kidcomm 通用化字段全部可选。",
+  "version": "2.0",
+  "type": "object",
+  "required": ["ip_id", "designer", "appearance", "personality", "expression_set", "locomotion", "battery", "safety"],
+  "properties": {
+    "ip_id": {
+      "type": "string",
+      "description": "IP 标识，如 flying-robot / flying-cat / dino-bot。IP 库丰富多彩，不限于猫：恐龙/狗/龙/机器人均可",
+      "examples": ["flying-cat", "dino-bot"]
+    },
+    "designer": {
+      "type": "string",
+      "enum": ["child", "parent", "official"],
+      "description": "设计者角色，对应权限模型：child 在 parent 开放的能力边界内自由组合"
+    },
+    "appearance": {
+      "type": "object",
+      "description": "外观表达（孩子可定制）。body_color/wing_type 对接 MuJoCo 物理仿真；shape/size/parts/texture 为 kidcomm 通用化表达层字段",
+      "properties": {
+        "body_color": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$", "description": "机身主色（精确色，仿真/渲染用）" },
+        "body_shape": { "type": "string", "description": "机身形态描述/预设名" },
+        "shape": { "type": "string", "description": "通用轮廓（kidcomm 字段）。常规形状或自由文本", "enum": ["round", "square", "triangle", "oval", "star", "heart", "other"] },
+        "color_primary": { "type": "string", "description": "主体颜色枚举（kidcomm 语料映射用）", "enum": ["red", "blue", "green", "yellow", "pink", "purple", "orange", "black", "white", "silver", "gold"] },
+        "size": { "type": "string", "enum": ["small", "medium", "large"], "description": "体量（kidcomm 必填目录之一）" },
+        "wing_type": { "type": "string", "enum": ["round", "sharp", "butterfly"], "description": "翅膀形态（仿真用）" },
+        "parts": { "type": "array", "description": "特征部件（kidcomm：仅身体器官，让「会飞的恐龙」成立的关键：选翅膀）", "items": { "type": "string", "enum": ["身体", "头", "翅膀", "尾巴", "触角", "爪子", "手臂"] } },
+        "accessory": { "type": "string", "description": "可选配饰（仿真翼色 pink/blue/gold 由关键词解析）" },
+        "texture": { "type": "string", "description": "质感（kidcomm：毛茸茸/金属/软胶…来自抽象词软映射）" }
+      },
+      "required": ["body_color", "wing_type"]
+    },
+    "personality": {
+      "type": "object",
+      "description": "性格与语言表达。trait 为本平台基调；type/expression/actions/tone 为 kidcomm 设计稿映射字段（可选）",
+      "properties": {
+        "trait": { "type": "string", "enum": ["lively", "calm", "silly"], "description": "性格基调（平台）" },
+        "type": { "type": "string", "enum": ["happy", "angry", "timid", "brave", "gentle", "naughty"], "description": "性格类型（kidcomm 六类）" },
+        "expression": { "type": "string", "description": "表情描述（kidcomm 映射）" },
+        "actions": { "type": "array", "items": { "type": "string" }, "description": "性格驱动的动作清单（kidcomm 映射）" },
+        "catchphrase": { "type": "string", "maxLength": 12, "description": "口头禅" },
+        "voice_tone": { "type": "string", "description": "音色/语气（平台）" },
+        "tone": { "type": "string", "description": "语气（kidcomm 映射：轻快/稳/轻柔…）" }
+      },
+      "required": ["trait", "catchphrase"]
+    },
+    "expression_set": {
+      "type": "array",
+      "description": "可用表情清单，驱动仿真内的 BlendShape / 面部变形目标",
+      "items": { "type": "string", "enum": ["natural", "curious", "angry", "happy", "sad", "thinking"] }
+    },
+    "locomotion": {
+      "type": "object",
+      "description": "运动与物理实现参数（喂给 Unity 物理引擎 / MuJoCo 数字孪生）",
+      "properties": {
+        "mode": { "type": "string", "enum": ["hover", "walk", "fly"], "description": "移动方式" },
+        "max_speed": { "type": "number", "description": "最大速度（仿真单位）" },
+        "physics_profile": { "type": "string", "enum": ["light", "standard", "heavy"], "description": "物理质量/惯量档位" }
+      },
+      "required": ["mode", "physics_profile"]
+    },
+    "battery": {
+      "type": "integer", "minimum": 0, "maximum": 100,
+      "description": "电量（眼睛显示，<25 变红告警）"
+    },
+    "safety": {
+      "type": "object",
+      "description": "安全边界（内嵌到设计契约，而非末尾说明）",
+      "required": ["role_boundaries", "content_filter"],
+      "properties": {
+        "role_boundaries": {
+          "type": "string",
+          "description": "机器人是孩子的盟友/自己人，不是家长眼线；家长端口仅设安全围栏，不监听",
+          "const": "ally-of-child-not-parent-spy"
+        },
+        "content_filter": { "type": "boolean", "description": "是否开启内容过滤" }
+      }
+    },
+    "source": {
+      "type": "string", "enum": ["drawing", "text"],
+      "description": "设计来源（kidcomm：孩子用画 / 用话描述）"
+    },
+    "build_hint": {
+      "type": "string",
+      "description": "给技术组的一句话自然语言说明（kidcomm 编译产物）"
+    },
+    "image_prompt": {
+      "type": "string",
+      "description": "送图像模型（ComfyUI/SD/FLUX）生成正式机器人图的提示词（kidcomm 编译产物）"
+    },
+    "code_stub": {
+      "type": "string",
+      "description": "可直接粘贴的初始配置代码（kidcomm 编译产物，伪 three.js / RobotDesign）"
+    }
+  },
+  "additionalProperties": false
+}

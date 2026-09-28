@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="470" viewBox="0 0 760 470">
+<rect width="100%" height="100%" fill="#fffdf7"/>
+<text x="380" y="34" text-anchor="middle" font-size="20" font-weight="700" fill="#2b2b2b">需求优先级 Top8（问卷收敛×Kano）</text>
+<text x="26" y="73" font-size="13" fill="#2b2b2b">内容安全过滤、隐私数据不出本地</text>
+<rect x="256" y="56" width="380" height="24" rx="12" fill="#5b8def" opacity="0.9"/>
+<text x="644" y="73" font-size="12" fill="#555">12</text>
+<text x="734" y="73" font-size="11" text-anchor="end" fill="#5b8def">基本型</text>
+<text x="26" y="119" font-size="13" fill="#2b2b2b">能陪我玩捉迷藏，会藏会伪装</text>
+<rect x="256" y="102" width="348" height="24" rx="12" fill="#f2a33c" opacity="0.9"/>
+<text x="612" y="119" font-size="12" fill="#555">11</text>
+<text x="734" y="119" font-size="11" text-anchor="end" fill="#f2a33c">期望型</text>
+<text x="26" y="165" font-size="13" fill="#2b2b2b">家长能开放/关闭定制能力（权限分层）</text>
+<rect x="256" y="148" width="348" height="24" rx="12" fill="#5b8def" opacity="0.9"/>
+<text x="612" y="165" font-size="12" fill="#555">11</text>
+<text x="734" y="165" font-size="11" text-anchor="end" fill="#5b8def">基本型</text>
+<text x="26" y="211" font-size="13" fill="#2b2b2b">语言对战不赖皮，也不能轻易让我赢</text>
+<rect x="256" y="194" width="316" height="24" rx="12" fill="#f2a33c" opacity="0.9"/>
+<text x="580" y="211" font-size="12" fill="#555">10</text>
+<text x="734" y="211" font-size="11" text-anchor="end" fill="#f2a33c">期望型</text>
+<text x="26" y="257" font-size="13" fill="#2b2b2b">玩中有学习价值（音乐/语言/编程思维）</text>
+<rect x="256" y="240" width="316" height="24" rx="12" fill="#f2a33c" opacity="0.9"/>
+<text x="580" y="257" font-size="12" fill="#555">10</text>
+<text x="734" y="257" font-size="11" text-anchor="end" fill="#f2a33c">期望型</text>
+<text x="26" y="303" font-size="13" fill="#2b2b2b">徒步帮我采声音，组成今日心情旋律</text>
+<rect x="256" y="286" width="285" height="24" rx="12" fill="#d75fa1" opacity="0.9"/>
+<text x="549" y="303" font-size="12" fill="#555">9</text>
+<text x="734" y="303" font-size="11" text-anchor="end" fill="#d75fa1">魅力型</text>
+<text x="26" y="349" font-size="13" fill="#2b2b2b">站我这边，不是妈妈派来的眼线</text>
+<rect x="256" y="332" width="285" height="24" rx="12" fill="#d75fa1" opacity="0.9"/>
+<text x="549" y="349" font-size="12" fill="#555">9</text>
+<text x="734" y="349" font-size="11" text-anchor="end" fill="#d75fa1">魅力型</text>
+<text x="26" y="395" font-size="13" fill="#2b2b2b">机器人是独一无二的（孩子自己定制 IP）</text>
+<rect x="256" y="378" width="285" height="24" rx="12" fill="#d75fa1" opacity="0.9"/>
+<text x="549" y="395" font-size="12" fill="#555">9</text>
+<text x="734" y="395" font-size="11" text-anchor="end" fill="#d75fa1">魅力型</text>
+<text x="26" y="432" font-size="11" fill="#888">得分 = 票数 + 2×提及次数 · 蓝基本型 / 橙期望型 / 粉魅力型</text></svg>

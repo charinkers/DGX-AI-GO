@@ -1,0 +1,13 @@
+# 儿童机器人创想实践平台 · 运行时配置
+# 默认 mock 模式：无需任何 API key，离线即可跑通端到端。
+# 拿到 StepFun / NIM 的 key 后，把 mode 改成 openai 并填好下面三项。
+
+llm:
+  mode: mock                 # mock | openai
+  # StepFun（阶跃星辰）提供 OpenAI 兼容端点，示例：
+  base_url: ""               # 例如 https://api.stepfun.com/v1
+  api_key: ""                # 赛事/平台发放的 key
+  model: ""                  # 例如 step-1.5v-mini（以官方为准）
+
+# 技能目录（默认指向 workspace 下的 skills/，复用你已写好的 SKILL.md）
+skills_dir: "../skills"

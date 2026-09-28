@@ -1,0 +1,26 @@
+{
+  "ip_id": "flying-cat",
+  "designer": "child",
+  "appearance": {
+    "body_color": "#FFD34D",
+    "wing_type": "butterfly",
+    "body_shape": "cat-shaped capsule body",
+    "accessory": "pink wing tips"
+  },
+  "personality": {
+    "trait": "lively",
+    "catchphrase": "喵呜起飞!",
+    "voice_tone": "bright"
+  },
+  "expression_set": ["natural", "curious", "angry", "happy"],
+  "locomotion": {
+    "mode": "fly",
+    "max_speed": 1.2,
+    "physics_profile": "light"
+  },
+  "battery": 88,
+  "safety": {
+    "role_boundaries": "ally-of-child-not-parent-spy",
+    "content_filter": true
+  }
+}

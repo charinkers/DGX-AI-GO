@@ -1,0 +1,129 @@
+<svg viewBox="0 0 1200 820" xmlns="http://www.w3.org/2000/svg" font-family="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3a3a3a"/>
+    </marker>
+    <marker id="arrg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#76B900"/>
+    </marker>
+  </defs>
+
+  <!-- background -->
+  <rect x="0" y="0" width="1200" height="820" fill="#ffffff"/>
+
+  <!-- title -->
+  <text x="600" y="52" text-anchor="middle" font-size="30" font-weight="700" fill="#1a1a1a">儿童机器人创想实践平台 —— Agent + Skills</text>
+  <text x="600" y="82" text-anchor="middle" font-size="16" fill="#76B900" font-weight="600">一个可定制的儿童 AI 伙伴平台 · 交付 = 1 个 Agent + 可扩展的场景 Skills</text>
+
+  <!-- ================= CENTER: AI AGENT ================= -->
+  <circle cx="600" cy="420" r="150" fill="none" stroke="#76B900" stroke-width="2.5" stroke-dasharray="10 7"/>
+  <circle cx="600" cy="420" r="150" fill="#76B900" opacity="0.05"/>
+
+  <!-- robot icon (flying robot IP) -->
+  <g transform="translate(600,392)">
+    <!-- body -->
+    <rect x="-42" y="-38" width="84" height="66" rx="20" fill="#ffffff" stroke="#1a1a1a" stroke-width="3"/>
+    <!-- eyes -->
+    <circle cx="-16" cy="-12" r="7" fill="#1a1a1a"/>
+    <circle cx="16" cy="-12" r="7" fill="#1a1a1a"/>
+    <!-- smile -->
+    <path d="M -14 8 Q 0 20 14 8" fill="none" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round"/>
+    <!-- propeller -->
+    <line x1="0" y1="-38" x2="0" y2="-52" stroke="#1a1a1a" stroke-width="3"/>
+    <ellipse cx="0" cy="-56" rx="34" ry="6" fill="#76B900" opacity="0.85"/>
+    <!-- little wings -->
+    <path d="M -42 -6 Q -62 -14 -58 4 Q -50 10 -42 2 Z" fill="#76B900" opacity="0.85"/>
+    <path d="M 42 -6 Q 62 -14 58 4 Q 50 10 42 2 Z" fill="#76B900" opacity="0.85"/>
+  </g>
+  <text x="600" y="462" text-anchor="middle" font-size="20" font-weight="700" fill="#1a1a1a">儿童机器人 Agent</text>
+  <text x="600" y="486" text-anchor="middle" font-size="13" fill="#666">飞行机器人 IP · 人格 · 感知 · 编排调度</text>
+  <text x="600" y="545" text-anchor="middle" font-size="17" fill="#76B900" font-weight="700">AI AGENT</text>
+
+  <!-- ================= SPOKES ================= -->
+  <!-- top: multimodal prompt -->
+  <line x1="600" y1="268" x2="600" y2="180" stroke="#3a3a3a" stroke-width="2" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="600" y="140" text-anchor="middle" font-size="17" font-weight="700" fill="#1a1a1a">多模态表达 PROMPT</text>
+  <text x="600" y="162" text-anchor="middle" font-size="13" fill="#666">孩子说 · 画 · 选，即表达</text>
+
+  <!-- top-left: files -->
+  <line x1="492" y1="322" x2="400" y2="240" stroke="#3a3a3a" stroke-width="2" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="330" y="215" text-anchor="middle" font-size="17" font-weight="700" fill="#1a1a1a">成长档案 FILES</text>
+  <text x="330" y="237" text-anchor="middle" font-size="13" fill="#666">孩子作品 · 采声音频 · 偏好</text>
+
+  <!-- top-right: memory -->
+  <line x1="708" y1="322" x2="800" y2="240" stroke="#3a3a3a" stroke-width="2" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="870" y="215" text-anchor="middle" font-size="17" font-weight="700" fill="#1a1a1a">记忆 MEMORY</text>
+  <text x="870" y="237" text-anchor="middle" font-size="13" fill="#666">跨场景 · 跨会话 · 越玩越懂孩子</text>
+
+  <!-- left: device use -->
+  <line x1="448" y1="420" x2="355" y2="420" stroke="#3a3a3a" stroke-width="2" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="285" y="395" text-anchor="middle" font-size="17" font-weight="700" fill="#1a1a1a">机身控制 DEVICE USE</text>
+  <text x="285" y="417" text-anchor="middle" font-size="13" fill="#666">表情脸屏 · 移动 · 画板涂鸦</text>
+  <text x="285" y="439" text-anchor="middle" font-size="13" fill="#666">可摸可摇的实体陪伴</text>
+
+  <!-- bottom-left: tools -->
+  <line x1="492" y1="518" x2="400" y2="600" stroke="#3a3a3a" stroke-width="2" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="330" y="628" text-anchor="middle" font-size="17" font-weight="700" fill="#1a1a1a">工具 TOOLS</text>
+  <text x="330" y="650" text-anchor="middle" font-size="13" fill="#666">麦克风 · 摄像头 · 音箱 · MCP</text>
+
+  <!-- bottom: expression / customization -->
+  <line x1="600" y1="572" x2="600" y2="655" stroke="#76B900" stroke-width="2.5" marker-start="url(#arrg)" marker-end="url(#arrg)"/>
+  <rect x="470" y="668" width="260" height="58" rx="12" fill="#F0F7E6" stroke="#76B900" stroke-width="2"/>
+  <text x="600" y="692" text-anchor="middle" font-size="16" font-weight="700" fill="#1a1a1a">表达编译器 EXPRESSION</text>
+  <text x="600" y="713" text-anchor="middle" font-size="12.5" fill="#555">孩子自由表达 → 自动编译成 IP / Skill 配置</text>
+
+  <!-- bottom-right: skills -->
+  <line x1="708" y1="518" x2="800" y2="600" stroke="#3a3a3a" stroke-width="2" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="870" y="628" text-anchor="middle" font-size="17" font-weight="700" fill="#1a1a1a">场景技能 SKILLS</text>
+  <text x="870" y="650" text-anchor="middle" font-size="13" fill="#666">捉迷藏 · 世界对战 · 采声旋律</text>
+
+  <!-- right-mid: LLM -->
+  <line x1="752" y1="420" x2="845" y2="420" stroke="#3a3a3a" stroke-width="2" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="900" y="400" text-anchor="middle" font-size="17" font-weight="700" fill="#1a1a1a">大模型 LLM</text>
+  <text x="900" y="440" text-anchor="middle" font-size="13" fill="#666">多模态理解 · 推理</text>
+
+  <!-- sub agents between LLM and skills -->
+  <text x="900" y="530" text-anchor="middle" font-size="15" font-weight="700" fill="#1a1a1a">通用能力 SUB-AGENTS</text>
+  <text x="900" y="552" text-anchor="middle" font-size="13" fill="#666">对话 · 表情 · 移动 · 创作</text>
+  <line x1="900" y1="470" x2="900" y2="508" stroke="#3a3a3a" stroke-width="2" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <line x1="900" y1="565" x2="900" y2="605" stroke="#3a3a3a" stroke-width="2" marker-start="url(#arr)" marker-end="url(#arr)"/>
+
+  <!-- ================= LEFT BOX: runtime base ================= -->
+  <rect x="30" y="480" width="230" height="270" rx="14" fill="#ffffff" stroke="#76B900" stroke-width="2"/>
+  <text x="145" y="515" text-anchor="middle" font-size="16" font-weight="700" fill="#1a1a1a">本地运行底座</text>
+  <line x1="55" y1="528" x2="235" y2="528" stroke="#76B900" stroke-width="1.5"/>
+  <g font-size="14" fill="#444">
+    <text x="60" y="565">· DGX Spark 本地算力</text>
+    <text x="60" y="600">· NIM 推理微服务</text>
+    <text x="60" y="635">· 多模态模型（视觉 / 语音）</text>
+    <text x="60" y="670">· 数据不出本地</text>
+    <text x="60" y="705">· 家长安全围栏</text>
+  </g>
+  <line x1="262" y1="560" x2="300" y2="560" stroke="#76B900" stroke-width="2" marker-end="url(#arrg)"/>
+
+  <!-- ================= RIGHT BOX: skills library ================= -->
+  <rect x="960" y="180" width="215" height="470" rx="14" fill="#ffffff" stroke="#76B900" stroke-width="2"/>
+  <text x="1067" y="215" text-anchor="middle" font-size="16" font-weight="700" fill="#1a1a1a">技能 · IP 库</text>
+  <line x1="985" y1="228" x2="1150" y2="228" stroke="#76B900" stroke-width="1.5"/>
+
+  <g font-size="14" fill="#444">
+    <text x="988" y="265" font-weight="700" fill="#1a1a1a">场景 Skills</text>
+    <text x="988" y="295">· 捉迷藏（藏 / 找 / 伪装）</text>
+    <text x="988" y="325">· 世界对战（可解释公平）</text>
+    <text x="988" y="355">· 采声旋律（徒步 → 钢琴谱）</text>
+    <text x="988" y="385" fill="#76B900" font-weight="600">· 持续扩展…</text>
+
+    <text x="988" y="435" font-weight="700" fill="#1a1a1a">通用能力 Skills</text>
+    <text x="988" y="465">· 对话 / 表情 / 移动 / 创作</text>
+
+    <text x="988" y="515" font-weight="700" fill="#1a1a1a">IP 库（可定制）</text>
+    <text x="988" y="545">· 飞行机器人（首发 IP）</text>
+    <text x="988" y="575">· 外观 / 性格 / 口头禅可配置</text>
+    <text x="988" y="610" fill="#76B900" font-weight="600">· 孩子自己设计 IP ★</text>
+  </g>
+  <line x1="940" y1="420" x2="958" y2="420" stroke="#76B900" stroke-width="2" marker-end="url(#arrg)"/>
+
+  <!-- footer strip -->
+  <rect x="30" y="765" width="1140" height="42" rx="10" fill="#F0F7E6"/>
+  <text x="600" y="792" text-anchor="middle" font-size="15" fill="#1a1a1a" font-weight="600">儿童机器人创想实践平台 = 常驻 Agent　+　即插即用 Skill　+　孩子 = 独一无二的创想者　　（新场景 = 新增一个 SKILL.md，平台零改动）</text>
+</svg>
