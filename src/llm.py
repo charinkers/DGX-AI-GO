@@ -25,7 +25,7 @@ class LLMClient:
         if cfg.mode == "openai":
             try:
                 from openai import OpenAI
-                self._client = OpenAI(base_url=cfg.base_url, api_key=cfg.api_key)
+                self._client = OpenAI(base_url=cfg.base_url, api_key=cfg.api_key or "EMPTY")
             except Exception as e:  # pragma: no cover
                 raise RuntimeError(f"OpenAI 客户端初始化失败: {e}")
 

@@ -89,6 +89,12 @@ def guide(text: str, spec: dict = None):
             if p not in spec.get("parts", []):
                 spec.setdefault("parts", []).append(p)
         msg += f"「{hit}」呀～我猜你想要 {a['note']}。 "
+    for p in PERSONALITY:
+        if p["n"] in text or p["k"] in text.lower():
+            spec["personality"] = p["k"]
+    concrete_text = text
+    for p in PERSONALITY:
+        concrete_text = concrete_text.replace(p["n"], "")
     # 具体词
     for cn, en in SHAPE_EN.items():
         if cn in text:
@@ -97,7 +103,7 @@ def guide(text: str, spec: dict = None):
         if cn in text:
             spec["color_primary"] = en
     for en, cn in SIZE_OPT:
-        if cn in text:
+        if cn in concrete_text:
             spec["size"] = en
     for p in PART_OPT:
         if p in text and p not in spec.get("parts", []):

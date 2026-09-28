@@ -67,21 +67,36 @@ def out(payload: dict) -> None:
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
+def lifetime_earned():
+    total = 0
+    for path, field, multiplier in ((FLOW_STATE, "points", 1), (HOMEWORK_STATE, "items_done", 10)):
+        data = read(path)
+        history = dict(data.get("earnings_by_date", {}))
+        if data.get("date"):
+            history[data["date"]] = max(history.get(data["date"], 0), data.get(field, 0) * multiplier)
+        total += sum(history.values())
+    return total
+
+
 def cmd_points(state: dict) -> dict:
     t = today_earned()
     spent = state.get("redeemed_total", 0)
+    earned_total = lifetime_earned()
     return {
         "today_earned": t["earned"],
         "redeemed_total": spent,
-        "remaining": t["earned"] - spent if t["earned"] >= spent else 0,
-        "say": ["今天一共赚了{e}分，之前兑换花掉{s}分，还剩{r}分哦！".format(
-            e=t["earned"], s=spent, r=max(t["earned"] - spent, 0))],
+        "remaining": max(earned_total - spent, 0),
+        "earned_total": earned_total,
+        "say": ["今天一共赚了{e}分，之前兑换花掉{s}分，累计还剩{r}分哦！".format(
+            e=t["earned"], s=spent, r=max(earned_total - spent, 0))],
     }
 
 
 def cmd_redeem(state: dict, label: str, cost: int) -> dict:
+    if not isinstance(cost, int) or cost <= 0:
+        return {"redeemed": None, "reason": "兑换积分必须是正整数"}
     t = today_earned()
-    remaining = max(t["earned"] - state.get("redeemed_total", 0), 0)
+    remaining = max(lifetime_earned() - state.get("redeemed_total", 0), 0)
     if cost > remaining:
         return {
             "redeemed": None, "reason": "积分不足",

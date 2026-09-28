@@ -1,106 +1,66 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""Bridge：把 harness 的 `--query` 约定转发到 community/store.py。
-
-query 示例：
-  "我想把飞天猫发到社区"  -> 发布（演示：用默认契约）
-  "看看社区里有什么"      -> 列出公开作品
-  "给 brave-dino 点个赞"  -> 点赞
-  "把 battle-pup 设为私有" -> 切换私有
-"""
+"""Community commands require explicit intent, an actual design and ownership."""
 import argparse
 import json
 import os
+from pathlib import Path
 import re
+import secrets
 import sys
 
-# 让本适配器能 import community/store.py
-ROOT = Path = os.path.dirname(os.path.abspath(__file__))
-COMMUNITY = os.path.abspath(os.path.join(ROOT, "..", "..", "..", "community"))
-sys.path.insert(0, COMMUNITY)
-import store  # noqa: E402
+COMMUNITY = Path(__file__).resolve().parents[3] / 'community'
+sys.path.insert(0, str(COMMUNITY))
+import store
 
-# 演示用默认契约（真实场景由表达层/设计 skill 产出后传入）
-DEFAULT_CONTRACT = {
-    "ip_id": "flying-cat", "designer": "child", "source": "demo",
-    "appearance": {"body_color": "#FFD34D", "body_shape": "cat", "wings": "butterfly"},
-    "personality": {"type": "brave", "trait": "protective"},
-    "expression_set": ["happy", "focused"],
-    "locomotion": {"mode": "fly", "physics_profile": "light"},
-    "battery": {"capacity_min": 120, "charging": "wireless"},
-    "safety": {"role_boundaries": "ally", "no_harm": True},
-}
+def local_token():
+    token = os.environ.get('KIDCOMM_OWNER_TOKEN')
+    if token:
+        store.owner_id(token)
+        return token
+    path = store.DATA_FILE.parent / '.owner-token'
+    path.parent.mkdir(parents=True, exist_ok=True)
+    from filelock import FileLock
+    with FileLock(str(path)+'.lock'):
+        if not path.exists():
+            with os.fdopen(os.open(path, os.O_CREAT|os.O_EXCL|os.O_WRONLY, 0o600), 'w') as f:
+                f.write(secrets.token_hex(32))
+        return path.read_text().strip()
 
+def find_work(key, works):
+    matches=[w for w in works if key.strip().lower() in (w['id'].lower(), w['title'].lower(),w['ip_id'].lower())]
+    return matches[0] if len(matches)==1 else None
 
-def _find_work_by_title_or_id(keyword: str):
-    kw = keyword.strip().lower()
-    for w in store._load():
-        if kw in w["id"].lower() or kw in w["title"].lower() or kw in w["ip_id"].lower():
-            return w
-    return None
-
-
-def handle(query: str) -> dict:
-    q = query.strip()
-    if not q:
-        return {"hint": "可说：把XX发到社区 / 看看社区 / 给XX点赞 / 设为私有"}
-
-    # 点赞
-    m = re.search(r"给(.+?)(点个?赞|点赞)", q)
+def handle(query, contract=None, owner_token=None):
+    q=query.strip()
+    if re.search(r'不要|别|不想|取消|不能|不许|不发布|不分享|不公开',q):
+        return {'action':'cancel','note':'没有发布或修改任何作品。'}
+    m=re.fullmatch(r'给(.+?)(?:点个赞|点赞)',q)
     if m:
-        w = _find_work_by_title_or_id(m.group(1))
+        w=find_work(m.group(1),store.list_public())
+        return {'action':'like','result':store.like(w['id'],store.owner_id(owner_token) if owner_token else 'guest') if w else None}
+    m=re.fullmatch(r'把(.+?)(?:设为|设置为)(私有|公开)',q)
+    if m:
+        token=owner_token or local_token()
+        w=find_work(m.group(1),store.list_owned(token))
         if w:
-            return {"action": "like", **store.like(w["id"], "guest")}
-        return {"action": "like", "error": f"没找到作品：{m.group(1)}"}
-
-    # 设为私有 / 公开
-    if "私有" in q or "只给自己" in q or "不分享" in q:
-        m = re.search(r"把(.+?)(设为|设置)?私有|(.+?)私有", q)
-        key = m.group(1) if m else ""
-        w = _find_work_by_title_or_id(key) if key else None
-        if w:
-            return {"action": "set_privacy", "public": False, **store.set_privacy(w["id"], False)}
-        return {"action": "set_privacy", "note": "未匹配具体作品，请指明作品名"}
-
-    if "公开" in q or ("分享" in q and "发" not in q):
-        m = re.search(r"把(.+?)(设为|设置)?公开|(.+?)公开", q)
-        key = m.group(1) if m else ""
-        w = _find_work_by_title_or_id(key) if key else None
-        if w:
-            return {"action": "set_privacy", "public": True, **store.set_privacy(w["id"], True)}
-        return {"action": "set_privacy", "note": "未匹配具体作品，请指明作品名"}
-
-    # 发布意图（放在浏览之前，避免「发到社区」被误判为浏览）
-    if "发布" in q or "发到社区" in q or "发出去" in q or "晒" in q or "分享给" in q:
-        title = (q.replace("我想把", "").replace("发到社区", "").replace("发布", "")
-                  .replace("出去", "").replace("分享给", "").strip()) or "我的机器人"
-        w = store.publish(contract=DEFAULT_CONTRACT, title=title, author="我",
-                          public=True, tags=["demo"])
-        return {"action": "publish", "work": w,
-                "note": "演示发布；真实场景应由表达层传入孩子自己的设计契约"}
-
-    # 浏览社区
-    if "看看" in q or "社区" in q or "画廊" in q or "有什么" in q:
-        pub = store.list_public()
-        return {"action": "list_public",
-                "count": len(pub),
-                "works": [{"title": w["title"], "author": w["author"],
-                           "likes": w["likes"], "ip_id": w["ip_id"]} for w in pub]}
-
-    # 兜底：发布（演示用默认契约）
-    title = q.strip() or "我的机器人"
-    w = store.publish(contract=DEFAULT_CONTRACT, title=title, author="我",
-                      public=True, tags=["demo"])
-    return {"action": "publish", "work": w,
-            "note": "演示发布；真实场景应由表达层传入孩子自己的设计契约"}
-
+            return {'action':'set_privacy','work':store.set_privacy(w['id'],m.group(2)=='公开',token)}
+        return {'action':'ask','note':'请指定你拥有的作品名或 ID。'}
+    publish = re.fullmatch(r'(?:我想|请|帮我)?(?:发布|分享)(?:我的作品|这个作品|当前设计|我的机器人)(?:到社区)?[。！!]?|(?:我想)?把(.+?)发到社区[。！!]?',q)
+    if publish:
+        if not contract:
+            return {'action':'ask','note':'请先完成机器人设计，再发布当前作品。'}
+        token=owner_token or local_token()
+        w=store.publish(contract, publish.group(1) or '我的机器人伙伴', '我', public=True,owner_token=token)
+        return {'action':'publish','work':w}
+    if any(w in q for w in ('看看','社区','画廊','有什么')):
+        return {'action':'list_public','works':store.list_public()}
+    return {'action':'ask','note':'请明确选择：浏览社区、发布我的作品，或把作品设为私有。'}
 
 def main():
-    ap = argparse.ArgumentParser(description="kidcomm-community bridge")
-    ap.add_argument("--query", default="")
-    args = ap.parse_args()
-    print(json.dumps(handle(args.query), ensure_ascii=False, indent=2))
+    ap=argparse.ArgumentParser()
+    ap.add_argument('--query',default='')
+    ap.add_argument('--design',default='null')
+    args=ap.parse_args()
+    print(json.dumps(handle(args.query,json.loads(args.design)),ensure_ascii=False,indent=2))
 
-
-if __name__ == "__main__":
+if __name__=='__main__':
     main()

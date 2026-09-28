@@ -1,156 +1,145 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""Local JSON storage with cross-process transactions and owner capabilities.
+
+Old works remain readable when public; ownerless legacy works cannot be claimed
+through the API. Restore ownership only through a trusted local migration.
 """
-community/store.py · 本地优先的儿童作品社区存储（纯标准库，无外部依赖）
-
-设计原则（与平台一致）：
-- 本地优先：所有作品存于 community/data/works.json，绝不联网、不出本地。
-- 表达权在孩子：孩子决定是否分享。每件作品可「分享到社区」（公开可点赞）
-  或「仅自己保存」（私有）。私有作品不进入公开画廊，但孩子自己随时可见、可再发布。
-- 社区即课堂：公开画廊让同龄人互相看见、互相点赞，激发与鼓励创造。
-
-作品(work) 结构：
-{
-  "id":          str,            # 唯一 id
-  "ip_id":       str,            # 设计契约中的 ip_id
-  "title":       str,            # 孩子给作品的名字
-  "author":      str,            # 孩子昵称（建议非真名）
-  "contract":    dict,           # 统一设计契约 robot-design.schema.json 实例
-  "color":       str,            # 缩略图主色（来自契约 appearance.body_color）
-  "tags":        list[str],      # 标签，便于发现
-  "public":      bool,           # True=分享到社区 / False=仅自己保存
-  "likes":       int,            # 点赞数
-  "liked_by":    list[str],      # 点赞者标识（防重复点赞，演示用昵称/会话）
-  "created_at":  str,            # ISO 时间
-}
-"""
-
+import functools
+import hashlib
+import hmac
 import json
 import os
+from pathlib import Path
+import tempfile
 import time
 import uuid
-from pathlib import Path
+import sys
+from filelock import FileLock
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from src.contracts import validate_contract
 
 HERE = Path(__file__).resolve().parent
-DATA_DIR = HERE / "data"
-DATA_FILE = DATA_DIR / "works.json"
+DATA_DIR = HERE / 'data'
+DATA_FILE = DATA_DIR / 'works.json'
 
-
-# --------------------------------------------------------------------------
-# 底层读写
-# --------------------------------------------------------------------------
-def _ensure_store():
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+def _load():
     if not DATA_FILE.exists():
-        DATA_FILE.write_text("[]", encoding="utf-8")
-
-
-def _load() -> list:
-    _ensure_store()
-    try:
-        return json.loads(DATA_FILE.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, FileNotFoundError):
         return []
+    # Never treat corrupt data as an empty database.
+    works = json.loads(DATA_FILE.read_text(encoding='utf-8'))
+    if not isinstance(works, list):
+        raise ValueError('Invalid works database')
+    return works
 
+def _save(works):
+    DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(dir=DATA_FILE.parent, prefix='.works-', suffix='.tmp')
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            json.dump(works, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(name, DATA_FILE)
+    finally:
+        if os.path.exists(name):
+            os.unlink(name)
 
-def _save(works: list):
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    DATA_FILE.write_text(json.dumps(works, ensure_ascii=False, indent=2),
-                         encoding="utf-8")
+def transaction(fn):
+    @functools.wraps(fn)
+    def locked(*args, **kwargs):
+        DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with FileLock(str(DATA_FILE) + '.lock', timeout=10):
+            return fn(*args, **kwargs)
+    return locked
 
+def owner_id(token):
+    if not isinstance(token, str) or len(token) < 32:
+        raise PermissionError('缺少有效的作品管理凭证')
+    return hashlib.sha256(token.encode()).hexdigest()
 
-# --------------------------------------------------------------------------
-# 对外 API
-# --------------------------------------------------------------------------
-def publish(contract: dict, title: str, author: str, public: bool = True,
-            tags: list = None, liker_hint: str = "demo") -> dict:
-    """发布一件作品。public=True 分享到社区，False 仅自己保存。"""
+def owns(work, token):
+    return bool(work.get('owner_id')) and hmac.compare_digest(work['owner_id'], owner_id(token))
+
+def public_view(work):
+    return {k:v for k,v in work.items() if k not in ('owner_id', 'liked_by')}
+
+@transaction
+def publish(contract, title, author, public=False, tags=None, liker_hint='demo', owner_token=None):
+    validate_contract(contract)
+    if not isinstance(title, str) or not isinstance(author, str):
+        raise ValueError('标题和昵称必须是文字')
+    if not isinstance(public, bool):
+        raise ValueError('public must be boolean')
     works = _load()
-    ip_id = contract.get("ip_id", "unnamed")
-    color = (contract.get("appearance") or {}).get("body_color", "#CCCCCC")
-    work = {
-        "id": uuid.uuid4().hex[:12],
-        "ip_id": ip_id,
-        "title": title or ip_id,
-        "author": author or "小创作者",
-        "contract": contract,
-        "color": color,
-        "tags": tags or [],
-        "public": bool(public),
-        "likes": 0,
-        "liked_by": [],
-        "created_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-    }
+    work = {'id':uuid.uuid4().hex, 'ip_id':contract['ip_id'],
+            'title':title or contract['ip_id'], 'author':author or '小创作者',
+            'contract':contract, 'color':contract['appearance']['body_color'],
+            'tags':tags or [], 'public':public, 'likes':0, 'liked_by':[],
+            'created_at':time.strftime('%Y-%m-%dT%H:%M:%S')}
+    if owner_token is not None:
+        work['owner_id'] = owner_id(owner_token)
     works.append(work)
     _save(works)
-    return work
+    return public_view(work)
 
+def list_public():
+    return [public_view(w) for w in sorted(_load(), key=lambda w:w.get('likes',0), reverse=True) if w.get('public')]
 
-def list_public() -> list:
-    """社区画廊：仅返回公开作品，按点赞数降序。"""
-    works = _load()
-    pub = [w for w in works if w.get("public")]
-    pub.sort(key=lambda w: w.get("likes", 0), reverse=True)
-    return pub
+def list_owned(token):
+    owner_id(token)
+    return [public_view(w) for w in _load() if owns(w,token)]
 
+def list_by_author(author):
+    # A nickname is not proof of ownership.
+    return [w for w in list_public() if w.get('author') == author]
 
-def list_by_author(author: str) -> list:
-    """某孩子的全部作品（含私有），便于「我的作品」管理。"""
-    return [w for w in _load() if w.get("author") == author]
-
-
-def get(work_id: str) -> dict:
+def get(work_id, owner_token=None):
     for w in _load():
-        if w["id"] == work_id:
-            return w
+        if w['id'] == work_id and (w.get('public') or (owner_token and owns(w,owner_token))):
+            return public_view(w)
     return None
 
-
-def like(work_id: str, liker: str = "demo") -> dict:
-    """点赞（同一 liker 不重复计）。返回更新后的作品；不存在返回 None。"""
+@transaction
+def like(work_id, liker='demo'):
     works = _load()
     for w in works:
-        if w["id"] == work_id:
-            liked = w.setdefault("liked_by", [])
+        if w['id'] == work_id and w.get('public'):
+            liked=w.setdefault('liked_by',[])
             if liker not in liked:
                 liked.append(liker)
-                w["likes"] = len(liked)
+            w['likes']=len(liked)
             _save(works)
-            return w
+            return {'id':w['id'], 'likes':w['likes']}
     return None
 
-
-def set_privacy(work_id: str, public: bool) -> dict:
-    """切换公开/私有。私有后退出社区画廊，但仍由作者自己保存。"""
-    works = _load()
+@transaction
+def set_privacy(work_id, public, owner_token=None):
+    owner_id(owner_token)
+    if not isinstance(public, bool):
+        raise ValueError('public must be boolean')
+    works=_load()
     for w in works:
-        if w["id"] == work_id:
-            w["public"] = bool(public)
+        if w['id'] == work_id:
+            if not owns(w,owner_token):
+                raise PermissionError('不能修改其他人的作品')
+            w['public']=public
             _save(works)
-            return w
+            return public_view(w)
     return None
 
-
-def remove(work_id: str) -> bool:
-    works = _load()
-    new = [w for w in works if w["id"] != work_id]
-    if len(new) != len(works):
-        _save(new)
-        return True
+@transaction
+def remove(work_id, owner_token=None):
+    owner_id(owner_token)
+    works=_load()
+    for w in works:
+        if w['id'] == work_id:
+            if not owns(w,owner_token):
+                raise PermissionError('不能删除其他人的作品')
+            works.remove(w);_save(works);return True
     return False
 
-
-def stats() -> dict:
-    works = _load()
-    return {
-        "total": len(works),
-        "public": sum(1 for w in works if w.get("public")),
-        "private": sum(1 for w in works if not w.get("public")),
-        "total_likes": sum(w.get("likes", 0) for w in works),
-    }
-
-
-if __name__ == "__main__":
-    print("community store 自检：")
-    print(" stats ->", stats())
-    print(" public ->", [w["title"] for w in list_public()])
+def stats():
+    works=_load()
+    return {'total':len(works), 'public':sum(bool(w.get('public')) for w in works),
+            'private':sum(not w.get('public') for w in works),
+            'total_likes':sum(w.get('likes',0) for w in works)}

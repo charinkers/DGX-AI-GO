@@ -148,7 +148,7 @@
     sharp:      "M92 170 L52 120 L96 150 Z",
     butterfly:  "M92 170 Q50 130 64 100 Q92 120 110 160 Z"
   };
-  const state = {color:PALETTE[0], wing:"round", personality:"lively", catchphrase:"一起玩吧！", battery:80};
+  const state = {ip_id:"child-design-" + crypto.randomUUID(), color:PALETTE[0], wing:"round", personality:"lively", catchphrase:"一起玩吧！", battery:80};
 
   const $ = id => document.getElementById(id);
 
@@ -189,16 +189,7 @@
   $("battery").oninput = e=>{state.battery=+e.target.value; render();};
 
   $("export").onclick = ()=>{
-    const cfg = {
-      ip: "flying-robot",
-      custom_by: "child",
-      color: state.color,
-      wing: state.wing,
-      personality: state.personality,
-      catchphrase: state.catchphrase,
-      battery: state.battery,
-      generated_at: new Date().toISOString()
-    };
+    const cfg = buildContract();
     $("cfg").textContent = JSON.stringify(cfg, null, 2);
   };
 
@@ -206,30 +197,41 @@
   // 社区发布层：与 community/server.py 的本地 API 对接
   // 本地优先：数据存本机 community/data/works.json，不出本地、不联网
   // ----------------------------------------------------------------------
-  const COMMUNITY_API = "http://localhost:8090";
+  const COMMUNITY_API = location.protocol === "file:" ? "http://localhost:8090" : location.origin;
+  let owner=localStorage.getItem("kidcomm-owner");
+  if(!owner){owner=crypto.randomUUID()+crypto.randomUUID();localStorage.setItem("kidcomm-owner",owner);}
+  const authHeaders={"Content-Type":"application/json","X-Owner-Token":owner};
   const myWorks = new Set();           // 本会话发布的作品 id，用于显示「私有/公开」切换
   const $c = id => document.getElementById(id);
 
   // 把当前表现层状态编译成统一设计契约（与 robot-design.schema.json 同源）
   function buildContract(){
     return {
-      ip_id: "child-design-" + Date.now(),
+      ip_id: state.ip_id, designer:"child",
       appearance: { body_color: state.color, wing_type: state.wing },
-      personality: { type: state.personality },
-      expression: { catchphrase: state.catchphrase },
-      battery: { percent: state.battery }
+      personality: { trait: state.personality, catchphrase:state.catchphrase },
+      expression_set:["natural"],
+      locomotion:{mode:"fly",physics_profile:"standard"},
+      safety:{role_boundaries:"ally-of-child-not-parent-spy",content_filter:true},
+      battery:state.battery
     };
   }
+
   function thumbColor(w){
     const c = w.contract && (w.contract.appearance?.body_color || w.contract.color);
-    return c || w.color || "#534AB7";
+    return /^#[0-9a-fA-F]{6}$/.test(c || w.color) ? (c || w.color) : "#534AB7";
   }
   async function loadGallery(){
     const g = $c("gallery");
     try{
       const r = await fetch(COMMUNITY_API + "/api/works");
       if(!r.ok) throw new Error("社区服务未启动");
-      const list = await r.json();
+      const publicList = await r.json();
+      const mineResponse = await fetch(COMMUNITY_API + "/api/mine",{headers:authHeaders});
+      if(!mineResponse.ok) throw new Error("无法读取自己的作品");
+      const owned = await mineResponse.json();
+      myWorks.clear();owned.forEach(w=>myWorks.add(w.id));
+      const list = [...new Map([...publicList,...owned].map(w=>[w.id,w])).values()];
       if(!list.length){ g.innerHTML = '<span class="hint">还没有公开作品，发布第一个吧！</span>'; return; }
       g.innerHTML = "";
       list.forEach(w=>{
@@ -257,12 +259,12 @@
   function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
   async function like(id){
     await fetch(COMMUNITY_API + "/api/works/" + id + "/like", {method:"POST",
-      headers:{"Content-Type":"application/json"}, body:JSON.stringify({liker:"guest"})});
+      headers:authHeaders, body:JSON.stringify({liker:"guest"})});
     loadGallery();
   }
   async function togglePrivacy(id, isPublic){
     await fetch(COMMUNITY_API + "/api/works/" + id + "/privacy", {method:"POST",
-      headers:{"Content-Type":"application/json"}, body:JSON.stringify({public:!isPublic})});
+      headers:authHeaders, body:JSON.stringify({public:!isPublic})});
     loadGallery();
   }
   $c("cPublish").onclick = async ()=>{
@@ -270,8 +272,9 @@
     const isPublic = $c("cPublic").checked;
     // 先导出配置，便于审计孩子表达了什么
     $("export").click();
+    try {
     const r = await fetch(COMMUNITY_API + "/api/works", {method:"POST",
-      headers:{"Content-Type":"application/json"},
+      headers:authHeaders,
       body: JSON.stringify({ title, author:"我", public:isPublic, contract: buildContract() })});
     if(r.ok){
       const w = await r.json();
@@ -280,8 +283,9 @@
       loadGallery();
       alert(isPublic ? "已分享到社区 🎉 去看看大家的点赞吧！" : "已保存为私有作品（仅自己可见）。");
     }else{
-      alert("发布失败：社区未启动或网络不可用。设计已通过上方 JSON 保存在本地。");
+      alert("发布失败：社区未启动或网络不可用。请复制上方设计 JSON 保存。");
     }
+    } catch(e) { alert("社区暂时不可用，请复制上方设计 JSON 保存。"); }
   };
   loadGallery();
 

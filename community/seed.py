@@ -87,6 +87,21 @@ SAMPLES = [
 ]
 
 
+for sample in SAMPLES:
+    contract = sample["contract"]
+    contract["source"] = "text"
+    contract["appearance"]["wing_type"] = "round"
+    p = contract["personality"]
+    p["type"] = {"cool":"brave", "silly":"naughty"}.get(p["type"],p["type"])
+    p["trait"] = {"protective":"lively", "loyal":"calm", "curious":"silly"}.get(p["trait"],p["trait"])
+    p["catchphrase"] = ""
+    contract["expression_set"] = ["natural", "happy"]
+    if contract["locomotion"]["physics_profile"] == "medium":
+        contract["locomotion"]["physics_profile"] = "standard"
+    contract["battery"] = 100
+    contract["safety"] = {"role_boundaries":"ally-of-child-not-parent-spy", "content_filter":True}
+
+
 def main():
     existing = {(w["ip_id"], w["author"]) for w in store._load()}
     added = 0

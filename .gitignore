@@ -31,3 +31,9 @@ secrets.json
 # Runtime logs
 *.log
 community/*.log
+
+# Session state and owner capabilities
+**/state.json
+community/data/.owner-token*
+community/data/*.lock
+.pytest_cache/

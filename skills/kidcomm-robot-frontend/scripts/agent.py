@@ -10,7 +10,7 @@
 输出严格 JSON（见 references/agent-contract.md）：
   {next_action: ask|fill|ready, missing_slot, question, slots, member_check}
 """
-import argparse, json, os, sys
+import argparse, json, os, sys, re
 
 # 动作优先级（先匹配更具体的动词）
 ACTIONS = ["pick_up", "move_to", "play", "turn", "stop"]
@@ -35,6 +35,12 @@ NO_TARGET_ACTIONS = {"stop"}
 
 
 def detect_action(text: str):
+    if re.search(r"不要停|别停|不停止", text):
+        return None
+    if any(k in text for k in ACTION_KW["stop"]):
+        return "stop"
+    if re.search(r"不要|别|不许|不能|不想|不用", text):
+        return None
     for a in ACTIONS:  # 已按优先级
         if any(k in text for k in ACTION_KW[a]):
             return a
@@ -65,6 +71,13 @@ def ground(utterance: str, slots: dict = None, actions: list = None, use_model: 
     actions = actions or ACTIONS
     utterance = utterance or ""
 
+    if re.search(r"不要|别|不许|不能|不想|不用|停|住手", utterance):
+        action = detect_action(utterance)
+        if action == "stop":
+            return {"next_action":"ready", "missing_slot":None, "question":None,
+                    "slots":{"action":"stop", "target":{}}, "member_check":"让机器人停下，对吗？"}
+        return {"next_action":"ask", "missing_slot":"action", "question":"已取消这个动作，你希望机器人做什么？",
+                "slots":{}, "member_check":None}
     if use_model and os.environ.get("KIDCOMM_BASE_URL"):
         try:
             llm = _llm_ground(utterance, slots, actions)
@@ -112,7 +125,7 @@ def _llm_ground(utterance, slots, actions):
         '只输出 JSON：{"action":..,"target":{"type":..,"color":..},"missing":[..],"member_check":..}。'
         "信息不足时 missing 列出缺的槽位（action/target）。"
     )
-    r = requests.post(base + "/v1/chat/completions",
+    r = requests.post(base + ("/chat/completions" if base.endswith("/v1") else "/v1/chat/completions"),
                       headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
                       json={"model": model,
                             "messages": [{"role": "system", "content": sys_prompt},
