@@ -241,7 +241,9 @@
 - Python **3.10+**（DGX Spark 自带 aarch64 Python 即可）
 
 ```bash
-pip install pyyaml requests mujoco numpy opencv-python-headless
+pip install -r requirements.txt
+# 仅运行物理仿真时额外安装：
+pip install mujoco numpy opencv-python-headless
 # 国内网络可用清华镜像：
 pip install -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn <pkg>
 ```
@@ -250,7 +252,7 @@ pip install -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna
 
 ```bash
 # 1. 默认 mock 模式，离线可跑，无需任何模型
-cd agent-platform
+cd DGX-AI-GO
 python -m src.cli --skills skills
 
 # 2. 接本地大模型（DGX Spark 上指向 Ollama，代码零改）
@@ -262,6 +264,7 @@ python -m src.cli --skills skills
 # 3. 启动「作品社区」服务（发布 / 点赞 / 私有-分享切换，本地优先）
 python community/server.py --port 8090 --no-browser
 #   浏览器打开 http://localhost:8090/ 即独立社区画廊
+#   http://localhost:8090/design 为设计页面，与画廊共享本地作品凭证
 #   或在 web-preview 表达层点「发布我的作品」直接发布当前设计
 #   数据存 community/data/works.json，全程本地、不出户
 ```
@@ -357,3 +360,6 @@ agent-platform/
 ## 边界声明
 
 不替孩子下结论、不诊断、不说教；儿童数据本地处理、禁止云上传；给孩子的内容必经安全护栏；表达权在孩子，理解权在家长。
+
+
+合并后的接口修复、测试方法及旧数据兼容边界见 [修复说明](docs/INTEGRATION_FIXES.md)。

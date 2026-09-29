@@ -3,7 +3,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from src.harness import Agent
 from src.llm import LLMConfig
 
-skills_dir = os.path.join(os.path.dirname(__file__), "..", "skills")
+skills_dir = os.path.join(os.path.dirname(__file__), "skills")
 agent = Agent(skills_dir=skills_dir, llm_cfg=LLMConfig(mode="mock"))
 
 print("=== 已加载技能 ===")

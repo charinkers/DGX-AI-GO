@@ -18,7 +18,7 @@ def main():
     ap = argparse.ArgumentParser(description="kidcomm-robot-frontend bridge")
     ap.add_argument("--query", default="")
     args = ap.parse_args()
-    out = agent.ground(args.query)
+    out = agent.ground(args.query, use_model=bool(os.environ.get("KIDCOMM_BASE_URL")))
     print(json.dumps(out, ensure_ascii=False, indent=2))
 
 

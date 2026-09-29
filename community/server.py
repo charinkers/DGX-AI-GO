@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-community/server.py · 本地儿童作品社区服务（纯标准库，零依赖）
+community/server.py · 本地儿童作品社区服务（本地文件存储）
 
 - 提供 JSON API：发布 / 浏览 / 点赞 / 切换公开私有
 - 提供可独立打开的社区画廊页（GET /）：展示公开作品、发布表单、点赞、私有/分享开关
@@ -15,6 +15,7 @@ community/server.py · 本地儿童作品社区服务（纯标准库，零依赖
 
 import argparse
 import json
+import re
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -63,7 +64,7 @@ GALLERY_HTML = """<!DOCTYPE html>
   <input id="title" placeholder="给作品起个名字，比如「会保护我的小恐龙」">
   <input id="author" placeholder="你的昵称（建议不用真名）">
   <textarea id="contract" placeholder='设计契约 JSON，例如 {"ip_id":"flying-cat", ...}'></textarea>
-  <label><input type="checkbox" id="public" checked> 分享到社区（取消勾选=仅自己保存，私有）</label><br>
+  <label><input type="checkbox" id="public"> 分享到社区（取消勾选=仅自己保存，私有）</label><br>
   <button class="btn" type="submit">发布</button>
 </form>
 
@@ -72,29 +73,49 @@ GALLERY_HTML = """<!DOCTYPE html>
 
 <script>
 const API="";
+let owner=localStorage.getItem("kidcomm-owner");
+if(!owner){owner=crypto.randomUUID()+crypto.randomUUID();localStorage.setItem("kidcomm-owner",owner);}
+const headers={"Content-Type":"application/json","X-Owner-Token":owner};
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function color(s){return /^#[0-9a-fA-F]{6}$/.test(s)?s:"#cccccc";}
+
 async function load(){
-  const r=await fetch(API+"/api/works"); const d=await r.json();
+  const r=await fetch(API+"/api/works"); const pub=await r.json();
+  const own=await (await fetch(API+"/api/mine",{headers})).json();
+  const owned=new Set(own.map(w=>w.id));
+  const d=[...new Map([...pub,...own].map(w=>[w.id,w])).values()];
   const g=document.getElementById("gallery"); g.innerHTML="";
   if(!d.length){g.innerHTML='<p class="sub">还没有公开作品，快来发布第一个吧！</p>';return;}
   d.forEach(w=>{
     const c=document.createElement("div"); c.className="card";
-    c.innerHTML=`<div class="thumb" style="background:${w.color||'#ccc'}">🤖</div>
-      <div class="title">${w.title}</div><div class="author">by ${w.author}</div>
+    c.innerHTML=`<div class="thumb" style="background:${color(w.color)}">🤖</div>
+      <div class="title">${esc(w.title)}</div><div class="author">by ${esc(w.author)}</div>
       <div class="row"><span class="badge ${w.public?'pub':'priv'}">${w.public?'分享中':'私有'}</span>
-      <button class="like" onclick="like('${w.id}')">❤️ ${w.likes}</button></div>`;
+      <button class="like">❤️ ${Number(w.likes)||0}</button></div>`;
+    c.querySelector(".like").onclick=()=>like(w.id);
+    if(owned.has(w.id)){
+      const toggle=document.createElement("button");
+      toggle.textContent=w.public?"仅自己保存":"分享到社区";
+      toggle.onclick=async()=>{
+        const result=await fetch(API+"/api/works/"+w.id+"/privacy",{method:"POST",headers,body:JSON.stringify({public:!w.public})});
+        if(!result.ok){alert("无法修改作品");return;}load();
+      };
+      c.appendChild(toggle);
+    }
     g.appendChild(c);
   });
 }
 async function like(id){ await fetch(API+"/api/works/"+id+"/like",{method:"POST",
-  headers:{"Content-Type":"application/json"},body:JSON.stringify({liker:"guest"})}); load(); }
+  headers,body:JSON.stringify({liker:"guest"})}); load(); }
 document.getElementById("pub").onsubmit=async e=>{
   e.preventDefault();
   let contract; try{contract=JSON.parse(document.getElementById("contract").value||"{}");}
   catch{alert("契约 JSON 格式不对");return;}
-  await fetch(API+"/api/works",{method:"POST",headers:{"Content-Type":"application/json"},
+  const result=await fetch(API+"/api/works",{method:"POST",headers,
     body:JSON.stringify({title:document.getElementById("title").value,
       author:document.getElementById("author").value,
       public:document.getElementById("public").checked,contract})});
+  if(!result.ok){alert("保存失败，请检查设计契约。原内容已保留。");return;}
   document.getElementById("contract").value=""; load();
 };
 load();
@@ -108,7 +129,7 @@ class Handler(BaseHTTPRequestHandler):
     def _cors(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Owner-Token")
 
     def _json(self, obj, code=200):
         body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
@@ -121,12 +142,17 @@ class Handler(BaseHTTPRequestHandler):
 
     def _body_json(self):
         ln = int(self.headers.get("Content-Length", 0))
+        if not 0 <= ln <= 1_000_000:
+            raise ValueError("request too large")
         if not ln:
             return {}
         try:
-            return json.loads(self.rfile.read(ln).decode("utf-8"))
-        except Exception:
-            return {}
+            value = json.loads(self.rfile.read(ln).decode("utf-8"))
+            if not isinstance(value, dict):
+                raise ValueError("request must be object")
+            return value
+        except Exception as exc:
+            raise ValueError("invalid JSON") from exc
 
     def do_OPTIONS(self):
         self.send_response(204)
@@ -134,6 +160,18 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        if self.path == "/design":
+            html = (HERE.parent / "web-preview/index.html").read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(html)
+            return
+        if self.path == "/api/mine":
+            try:
+                return self._json(store.list_owned(self.headers.get("X-Owner-Token")))
+            except PermissionError:
+                return self._json({"error":"需要作品管理凭证"}, 403)
         if self.path == "/" or self.path == "/index.html":
             html = GALLERY_HTML.encode("utf-8")
             self.send_response(200)
@@ -149,13 +187,26 @@ class Handler(BaseHTTPRequestHandler):
         self._json({"error": "not found"}, 404)
 
     def do_POST(self):
+        try:
+            self._post()
+        except PermissionError:
+            self._json({"error":"无权访问这个作品"}, 403)
+        except (ValueError, TypeError, KeyError):
+            self._json({"error":"请求或设计契约不合法"}, 400)
+
+    def _post(self):
         if self.path == "/api/works":
             d = self._body_json()
+            token = self.headers.get("X-Owner-Token")
+            store.owner_id(token)
+            if not isinstance(d.get("public", False), bool):
+                raise ValueError("public must be boolean")
             w = store.publish(
                 contract=d.get("contract", {}),
                 title=d.get("title", ""),
                 author=d.get("author", ""),
-                public=bool(d.get("public", True)),
+                public=d.get("public", False),
+                owner_token=token,
                 tags=d.get("tags", []),
             )
             return self._json(w, 201)
@@ -165,10 +216,11 @@ class Handler(BaseHTTPRequestHandler):
             wid, action = parts[2], parts[3]
             d = self._body_json()
             if action == "like":
-                w = store.like(wid, d.get("liker", "guest"))
+                token = self.headers.get("X-Owner-Token")
+                w = store.like(wid, store.owner_id(token) if token else "guest")
                 return self._json(w or {"error": "not found"}, 200 if w else 404)
             if action == "privacy":
-                w = store.set_privacy(wid, bool(d.get("public", False)))
+                w = store.set_privacy(wid, d.get("public", False), self.headers.get("X-Owner-Token"))
                 return self._json(w or {"error": "not found"}, 200 if w else 404)
         self._json({"error": "not found"}, 404)
 
@@ -181,7 +233,7 @@ def main():
     ap.add_argument("--port", type=int, default=PORT)
     ap.add_argument("--no-browser", action="store_true")
     args = ap.parse_args()
-    srv = ThreadingHTTPServer(("0.0.0.0", args.port), Handler)
+    srv = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     print(f"[community] 儿童作品社区已启动: http://localhost:{args.port}/")
     if not args.no_browser:
         try:

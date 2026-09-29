@@ -8,6 +8,9 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import logging
+from types import SimpleNamespace
 import os
 import subprocess
 import sys
@@ -25,6 +28,9 @@ class Agent:
     llm_cfg: LLMConfig
     skills: list[Skill] = field(default_factory=list)
     llm: LLMClient = None  # type: ignore
+    design_state: dict = field(default_factory=dict)
+    pending_design: bool = False
+    latest_contract: dict = field(default_factory=dict)
 
     def __post_init__(self):
         self.skills = load_skills(self.skills_dir)
@@ -36,34 +42,59 @@ class Agent:
             lines.append(f"  • {s.name} — {s.description[:40]}…")
         return "\n".join(lines)
 
-    def _screen_input(self, text: str):
+    def _screen(self, text: str, mode="input"):
         """强制安全前置闸门：动态加载 kidcomm-safety-guardrail 的确定性规则。
 
-        返回 screen() 的结果 dict；若护栏缺失或加载失败则返回 None（不阻断主流程）。
+        返回 screen() 的结果 dict；护栏不可用时拒绝继续。
         """
         guardrail_dir = os.path.join(self.skills_dir, "kidcomm-safety-guardrail", "scripts")
         if not os.path.isdir(guardrail_dir):
-            return None
+            raise RuntimeError("安全护栏不可用")
         try:
             spec = importlib.util.spec_from_file_location(
                 "guardrail_screen", os.path.join(guardrail_dir, "screen.py")
             )
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)
-            return mod.screen(text, "input")
-        except Exception:  # 护栏异常不应让主流程崩溃
-            return None
+            result = mod.screen(text, mode)
+            if not isinstance(result, dict) or result.get("action") not in ("allow", "warn", "block"):
+                raise RuntimeError("护栏返回无效结果")
+            return result
+        except Exception as exc:
+            raise RuntimeError("安全护栏不可用") from exc
 
     def chat(self, user_msg: str) -> str:
+        try:
+            reply = self._chat(user_msg)
+            result = self._screen(reply, "output")
+            if result.get("action") != "allow":
+                return "这条回复不适合展示，我们换一种安全的方式试试。"
+            return reply
+        except RuntimeError:
+            logging.getLogger(__name__).exception("Guardrail unavailable")
+            return "安全检查暂时不可用，请稍后再试。"
+
+    def _chat(self, user_msg: str) -> str:
         # 0) 强制安全前置闸门：任何输入先过护栏
-        g = self._screen_input(user_msg)
+        g = self._screen(user_msg)
         if g and g.get("action") == "block":
             return (
                 f"（安全护栏已拦截｜{g.get('message', '命中安全规则')}）\n"
                 "表达权在你，但这条内容不适合继续哦。我们换个话题吧～"
             )
 
-        if self.llm_cfg.mode == "openai":
+        if user_msg.strip() in ("取消设计", "退出设计"):
+            self.pending_design = False
+            self.design_state = {}
+            return "已退出这次设计。"
+        if user_msg.strip() == "重新设计":
+            self.design_state = {}
+            self.latest_contract = {}
+            self.pending_design = True
+        if self.pending_design:
+            skill = next((s for s in self.skills if s.name == "kidcomm-robot-designer"), None)
+            result = SimpleNamespace(skill=skill, reason="继续补全设计")
+        elif self.llm_cfg.mode == "openai":
             result = dispatch_by_llm(user_msg, self.skills, self.llm)
         else:
             result = dispatch_by_keywords(user_msg, self.skills)
@@ -94,13 +125,33 @@ class Agent:
 
     def _run_script(self, script: str, user_msg: str) -> str:
         try:
+            args = [sys.executable, script, "--query", user_msg]
+            is_design = "kidcomm-robot-designer" in script
+            if is_design:
+                args += ["--state", json.dumps(self.design_state, ensure_ascii=False)]
+            if "kidcomm-community" in script and self.latest_contract:
+                args += ["--design", json.dumps(self.latest_contract, ensure_ascii=False)]
+            env = os.environ.copy()
+            if self.llm_cfg.mode == "openai":
+                env.update(KIDCOMM_BASE_URL=self.llm_cfg.base_url,
+                           KIDCOMM_MODEL=self.llm_cfg.model,
+                           KIDCOMM_API_KEY=self.llm_cfg.api_key)
             r = subprocess.run(
-                [sys.executable, script, "--query", user_msg],
+                args, env=env,
                 capture_output=True, text=True, timeout=60,
             )
             out = (r.stdout or "").strip()
+            if is_design and r.returncode == 0:
+                payload = json.loads(out)
+                if self._screen(out, "output").get("action") == "allow":
+                    self.design_state = payload.get("state", {})
+                    self.pending_design = bool(payload.get("missing_required"))
+                    if payload.get("contract"):
+                        self.latest_contract = payload["contract"]
             if r.returncode != 0 and r.stderr:
                 out += f"\n⚠️ 脚本 stderr: {r.stderr.strip()}"
             return out
+        except RuntimeError:
+            raise
         except Exception as e:  # pragma: no cover
             return f"[技能脚本执行失败] {e}"

@@ -10,4 +10,4 @@ llm:
   model: ""                  # 例如 step-1.5v-mini（以官方为准）
 
 # 技能目录（默认指向 workspace 下的 skills/，复用你已写好的 SKILL.md）
-skills_dir: "../skills"
+skills_dir: "skills"

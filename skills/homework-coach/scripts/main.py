@@ -21,15 +21,21 @@ POINTS_PER_ITEM = 10
 
 def load_state() -> dict:
     today = date.today().isoformat()
+    history = {}
     if STATE_PATH.exists():
         state = json.loads(STATE_PATH.read_text(encoding="utf-8"))
+        history = dict(state.get("earnings_by_date", {}))
+        if state.get("date"):
+            history[state["date"]] = max(history.get(state["date"], 0), state.get("items_done", 0) * POINTS_PER_ITEM)
         if state.get("date") == today and state.get("kind") == "homework":
             return state
-    return {"date": today, "kind": "homework", "school": 0, "extra": 0,
+    return {"earnings_by_date": history, "date": today, "kind": "homework", "school": 0, "extra": 0,
             "items_done": 0, "rests_taken": 0, "in_rest": False}
 
 
 def save_state(state: dict) -> None:
+    history = state.setdefault("earnings_by_date", {})
+    history[state["date"]] = max(history.get(state["date"], 0), state.get("items_done", 0) * POINTS_PER_ITEM)
     STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
@@ -43,6 +49,8 @@ def parse_query(q: str) -> list[str]:
         return ["rest-done"]
     if any(w in q for w in ("小结", "今晚作业总结", "今天作业怎么样")):
         return ["finish"]
+    if any(w in q for w in ("没", "未", "不", "还在", "正在")):
+        return ["status"]
     if any(w in q for w in ("开始", "写作业", "开始写", "今晚作业")):
         return ["start"]
     if any(w in q for w in ("写完", "做完", "完成", "搞定")):

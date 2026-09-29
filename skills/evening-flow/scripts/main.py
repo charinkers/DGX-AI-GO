@@ -42,14 +42,20 @@ ACCEPT_LINES = [
 
 def load_state() -> dict:
     today = date.today().isoformat()
+    history = {}
     if STATE_PATH.exists():
         state = json.loads(STATE_PATH.read_text(encoding="utf-8"))
+        history = dict(state.get("earnings_by_date", {}))
+        if state.get("date"):
+            history[state["date"]] = max(history.get(state["date"], 0), state.get("points", 0))
         if state.get("date") == today:
             return state
-    return {"date": today, "done": {}}
+    return {"earnings_by_date": history, "date": today, "done": {}}
 
 
 def save_state(state: dict) -> None:
+    history = state.setdefault("earnings_by_date", {})
+    history[state["date"]] = max(history.get(state["date"], 0), state.get("points", 0))
     STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
@@ -107,6 +113,8 @@ def parse_query(q: str) -> list[str]:
                 return ["skip", key]
         return ["skip", "homework"]
     if any(w in q for w in STATUS_WORDS):
+        return ["status"]
+    if any(w in q for w in ("没", "未", "不", "还在", "正在")):
         return ["status"]
     if any(w in q for w in DONE_WORDS):
         for hints, key in DONE_HINTS:
